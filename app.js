@@ -2,23 +2,20 @@ let log = console.log;
 let ping = require('ping');
 let hosts = require('./Modules/OLT');
 let err_map_cache = new Map();
-// let oneLoop = true;
+let err_map_cache_runner;
+let hosts_runner;
 let dingTalk = require('./Modules/dingtalk');
 let Sequ_Module = require('./mysql/Modules/Sequ_Module');
 let getTime = require('./Modules/getTime');
 
-async function run(){
-    let olt_err_num = 0;
-    hosts.forEach(async function(host,oltName){
-        let res = await ping.promise.probe(host, { timeout: 10, extra: ["-i 2"] })
+async function run() {
+    hosts_runner = hosts;
+    err_map_cache_runner = err_map_cache;
+    hosts_runner.forEach(async function (host, oltName) {
+        let res = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
         if (!res.alive) {
-            olt_err_num++;
             err_map_cache.set(oltName, host);
             hosts.delete(oltName);
-        }
-    })
-    err_map_cache.forEach(async function(host,oltName){
-        if (olt_err_num < 20) {
             console.log({ title: 'OLT脱管通报', text: `### OLT脱管通报\n ${oltName}(${host})` });
             await Sequ_Module.MOD.create({
                 id: new Date().getTime(),
@@ -27,36 +24,71 @@ async function run(){
                 end_time: null
             });
             await dingTalk({ title: 'OLT脱管通报', text: `### OLT脱管通报\n ${oltName}(${host})` });
-        } else {
-            hosts.set(oltName, host);
-            err_map_cache.delete(oltName);
         }
     })
-    //每次刷新通报
-    err_map_cache.forEach(async function (host,oltName) {
-        // console.log(err_map_cache);
-        let res_err = await ping.promise.probe(host, { timeout: 10, extra: ["-i 2"] })
+    err_map_cache_runner.forEach(async function (host, oltName) {
+        let res_err = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] });
         if (res_err.alive) {
             hosts.set(oltName, host);
             err_map_cache.delete(oltName);
-            console.log({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
-            Sequ_Module.MOD.update(
-                { end_time: getTime() },
-                {
-                    'where': {
-                        name: oltName,
-                        end_time: null
-                    }
-                }
-            );
-            await dingTalk({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
+            console.log({
+                title: "已恢复OLT:",
+                text: `> ${oltName}(${host}) 已恢复`
+            });
+            Sequ_Module.MOD.update({ end_time: getTime() }, { where: { name: oltName, end_time: null } });
+            await dingTalk({
+                title: "已恢复OLT:",
+                text: `> ${oltName}(${host}) 已恢复`
+            });
         }
     })
+    //每次刷新通报
+    // err_map_cache_runner.forEach(async function (host,oltName) {
+    //     if(err_num<20){
+    //         let res_err = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
+    //         if (res_err.alive) {
+    //             hosts.set(oltName, host);
+    //             err_map_cache.delete(oltName);
+    //             console.log({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
+    //             Sequ_Module.MOD.update(
+    //                 { end_time: getTime() },
+    //                 {
+    //             err_map_cache_runner.forEach(async function (host,oltName) {
+    //     if(err_num<20){
+    //         let res_err = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
+    //         if (res_err.alive) {
+    //             hosts.set(oltName, host);
+    //             err_map_cache.delete(oltName);
+    //             console.log({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
+    //             Sequ_Module.MOD.update(
+    //                 { end_time: getTime() },
+    //                 {
+    //                     'where': {
+    //                         name: oltName,
+    //                         end_time: null
+    //                     }
+    //                 }
+    //             );
+    //             await dingTalk({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
+    //         }
+
+    //     }
+    // })        'where': {
+    //                         name: oltName,
+    //                         end_time: null
+    //                     }
+    //                 }
+    //             );
+    //             await dingTalk({ title: '已恢复OLT:', text: `> ${oltName}(${host}) 已恢复` });
+    //         }
+
+    //     }
+    // })
     //整点刷新通报
     let hour = new Date().getHours();
     let min = new Date().getMinutes();
     let sec = new Date().getSeconds();
-    if(min < 5){
+    if (min < 5) {
         console.log(`${hour}:${min}:${min}`);
         let arr_err_olts = await Sequ_Module.MOD.findAll(//query failure olts.
             {
