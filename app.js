@@ -11,20 +11,13 @@ let hourNum = 0;
 
 async function run() {
     hourNum++
-    hosts_runner = hosts;
-    err_map_cache_runner = err_map_cache
-    await hosts_runner.forEach(async function (host, oltName) {
-        let res = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
-        if (!res.alive) {
-            err_num++;
-            err_map_cache_runner.set(oltName, host)
-        }
-    })
     await (async () => {
-        if (getLength(err_map_cache_runner)< 20) {
-            err_map_cache_runner.forEach(async function (host, oltName) {
-                // let res = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
-                // if (!res.alive) {
+        hosts_runner = hosts;
+        err_map_cache_runner = err_map_cache
+        hosts_runner.forEach(async function (host, oltName) {
+            let res = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
+            if (!res.alive) {
+                // err_map_cache_runner.set(oltName, host)
                 err_map_cache.set(oltName, host);
                 hosts.delete(oltName);
                 console.log({ title: 'OLT脱管通报', text: `### OLT脱管通报\n ${oltName}(${host})` });
@@ -35,22 +28,18 @@ async function run() {
                     end_time: null
                 });
                 await dingTalk({ title: 'OLT脱管通报', text: `### OLT脱管通报\n ${oltName}(${host})` });
-            })
-        }else{
-            err_map_cache_runner = err_map_cache
-        }
+            }
+        })
     })()
     await (async () => {
+        hosts_runner = hosts;
         err_map_cache_runner = err_map_cache;
         err_map_cache_runner.forEach(async function (host, oltName) {
             let res_err = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] });
             if (res_err.alive) {
                 hosts.set(oltName, host);
                 err_map_cache.delete(oltName);
-                console.log({
-                    title: "已恢复OLT:",
-                    text: `> ${oltName}(${host}) 已恢复`
-                });
+                console.log({ title: "已恢复OLT:", text: `> ${oltName}(${host}) 已恢复` });
                 Sequ_Module.MOD.update({ end_time: getTime() }, { where: { name: oltName, end_time: null } });
                 await dingTalk({
                     title: "已恢复OLT:",
@@ -60,11 +49,10 @@ async function run() {
 
         })
     })()
-    
-    // 整点刷新通报
-        if (hourNum === 20) {
-             hourNum = 0;
-            console.log(`${hour}:${min}:${min}`);
+    await (async () => {
+        // 整点刷新通报
+        if (hourNum === 12) {
+            hourNum = 0;
             let arr_err_olts = await Sequ_Module.MOD.findAll(//query failure olts.
                 {
                     where: { end_time: null }
@@ -82,18 +70,12 @@ async function run() {
                 await dingTalk({ title: '当前仍脱管OLT:', text: `### 当前仍脱管OLT:\n ${err_olts}` });
             }
         }
+    })()
+
 }
 
-function getLength(obj) {
-    var count = 0;
-    obj.forEach(element => {
-       count++ 
-    });
-    return count;
-}
-
-function wait(time) {
-    run();
+async function wait(time) {
+    await run();
     setTimeout(() => {
         wait(time)
     }, time);
