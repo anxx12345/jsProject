@@ -17,7 +17,6 @@ async function run() {
         hosts_runner.forEach(async function (host, oltName) {
             let res = await ping.promise.probe(host, { timeout: 4, extra: ["-i 2"] })
             if (!res.alive) {
-                // err_map_cache_runner.set(oltName, host)
                 err_map_cache.set(oltName, host);
                 hosts.delete(oltName);
                 console.log({ title: 'OLT脱管通报', text: `### OLT脱管通报\n ${oltName}(${host})` });
