@@ -1,0 +1,40 @@
+<html>
+    <body>
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <script src="jquery.js"></script>
+        <script>
+           $(function(){
+               $('#id').click(function(){
+
+               })
+               $(document).on('click','#id',function(e){
+                   e.preventDefault();
+                   $.post({
+                       url:'xxx',
+                       form:{
+                          id:121231,
+                          num:32323 
+                       }
+                   },function(body,err){
+                       console.log(body)
+                   })
+               })
+
+           })
+        </script>
+    </body>
+</html>
